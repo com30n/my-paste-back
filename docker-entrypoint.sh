@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+case "${1}" in
+    "api")
+        shift
+        echo "Starting API ..." && \
+        exec uvicorn main:app --reload --log-level=info
+        ;;
+
+    "pytest")
+        shift
+        echo "Tests"
+        exec pytest ${@}
+        ;;
+
+    "help")
+        shift
+        exec echo "Set command: api pytest"
+        ;;
+
+    *)
+        exec ${@}
+        ;;
+esac
