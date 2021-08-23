@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY ./requirements.txt .
 RUN apk update \
-    && apk add --virtual gcc g++ \
+    && apk add --virtual .build-deps build-base gcc \
     && pip install -r requirements.txt \
-    && apk del gcc g++
+    && apk del .build-deps build-base gcc
 
 COPY . .
 
