@@ -7,4 +7,4 @@ jobs:
     steps:
       - name: docker build
         id: build
-        uses: com30n/my-paste-back
+        uses: com30n/my-paste-back@v1.0.0
