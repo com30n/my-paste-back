@@ -1,0 +1,7 @@
+name: docker-build
+author: contact@evgeniyshubin.dev
+description: Just builds a docker image
+on: [push]
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
