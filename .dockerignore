@@ -302,3 +302,6 @@ gen
 
 *.rdb
 
+/.github/
+/.helm/
+/dump.rdb
