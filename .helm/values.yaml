@@ -1,0 +1,110 @@
+
+app:
+  ## api container name
+  ##
+  name: my-paste-back
+
+  ## api container image
+  ##
+  image:
+    repository: REPO_NAME
+    tag: REPO_TAG
+
+  ## Args for entry point
+  args: ["api"]
+
+  ## Additional api container environment variable
+  ##
+  extraEnv:
+    - name: "ENV_NAME"
+      value: "env_value"
+
+  ## Container port
+  containerPort: "8080"
+
+  ## Port name for probes and service
+  containerPortName: api-port
+
+  ingress:
+    ## If true, api Ingress will be created
+    ##
+    enabled: false
+
+    ## api Ingress annotations
+    ##
+    annotations: {}
+
+    ## api Ingress additional labels
+    ##
+    extraLabels: {}
+
+    paths:
+      - "/"
+
+    ## Ingress hostnames with optional path
+    ## Must be provided if Ingress is enabled
+    ##
+    hosts: []
+
+    tls: []
+#      - secretName: "secretName"
+#        hosts:
+#          - "hostName"
+
+  ## Annotations to be added to api pods
+  ##
+  podAnnotations: {}
+#    prometheus.io/path: /-/metrics
+#    prometheus.io/port: "8080"
+#    prometheus.io/scrape: "true"
+
+
+  ## Use a StatefulSet if replicaCount needs to be greater than 1 (see below)
+  ##
+  replicaCount: "1"
+
+  ## api resource requests and limits
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ##
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+  ## Horizontal Pod Autoscaler settings
+  ## Just uncomment it for using
+  #
+  hpa:
+    minReplicas: 1
+    maxReplicas: 2
+    resourceName: targetCPUUtilizationPercentage
+    averageUtilization: 50
+
+  ## Some settings for a services
+  #
+  service:
+    annotations: {}
+    labels: {}
+
+    ## Enabling peer mesh service end points for enabling the HA alert manager
+    ## Ref: https://github.com/prometheus/api/blob/master/README.md
+    # enableMeshPeer : true
+
+    ## List of IP addresses at which the api service is available
+    ## Ref: https://kubernetes.io/docs/user-guide/services/#external-ips
+    ##
+    externalIPs: []
+
+    ports:
+      - name: api-external
+        port: "80"
+        targetPort: api-port
+
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    servicePort: api-external
+    # ClusterIP type by default
+#    type: NodePort
