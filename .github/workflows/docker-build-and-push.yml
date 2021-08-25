@@ -47,6 +47,7 @@ jobs:
       - name: Push image to docker.io
         # Пушим образ в registry
         run: docker push $LOGIN/$NAME:${GITHUB_REF:11}
+        run: docker push $LOGIN/$NAME:latest
 
 #   deploy:
 #     # Если мы успешно собрали контейнер и отправили в registry, то делаем хук деплоймент серверу

@@ -4,7 +4,7 @@ case "${1}" in
     "api")
         shift
         echo "Starting API ..." && \
-        exec uvicorn main:app --reload --log-level=info
+        exec uvicorn main:app --reload --port 8080 --log-level=info
         ;;
 
     "pytest")
