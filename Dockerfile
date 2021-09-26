@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY ./requirements.txt .
 RUN apk update \
-    && apk add --virtual .build-deps build-base python3-dev libc-dev gcc \
+    && apk add --virtual .build-deps build-base python3-dev libc-dev gcc curl \
     && pip install -r requirements.txt \
     && apk del .build-deps build-base python3-dev libc-dev gcc
 
