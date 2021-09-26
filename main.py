@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import string
 import random
+import os
 
 import aioredis
 
@@ -9,7 +10,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
-redis = aioredis.from_url("redis://localhost:6379")
+REDIS_URI = os.environ.get("REDIS_URI", "redis://localhost:6379")
+
+redis = aioredis.from_url(REDIS_URI)
 app = FastAPI()
 origins = [
     "http://localhost.tiangolo.com",
