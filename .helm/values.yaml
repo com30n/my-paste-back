@@ -50,7 +50,7 @@ app:
     extraLabels: {}
 
     paths:
-      - "/"
+      - "/paste"
 
     ## Ingress hostnames with optional path
     ## Must be provided if Ingress is enabled
