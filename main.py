@@ -70,3 +70,8 @@ async def get_paste(paste_name: str) -> Paste:
         return paste
     except Exception as e:
         print(e)
+
+
+@app.get("/ping")
+async def get_paste() -> str:
+    return "OK"
