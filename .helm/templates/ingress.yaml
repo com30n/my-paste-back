@@ -31,7 +31,7 @@ spec:
               service:
                 name: {{ $serviceName }}
                 port:
-                  number: {{ $servicePort }}
+                  name: {{ $servicePort }}
   {{- end -}}
   {{- end -}}
   {{- if .Values.app.ingress.tls }}
