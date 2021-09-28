@@ -1,0 +1,51 @@
+{{- if hasKey .Values "secondPartyApp" -}}
+{{- if .Values.secondPartyApp.enabled -}}
+{{- $values := . }}
+{{- range $app := .Values.secondPartyApp.apps }}
+{{- if and $app $app.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+{{- if $app.service.annotations }}
+  annotations:
+{{ toYaml $app.service.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+    {{- include "commonApp.secondPartyApp.labels" $values | nindent 4 }}
+{{- if $app.service.labels }}
+{{ toYaml $app.service.labels | indent 4 }}
+{{- end }}
+  name: {{ template "commonApp.secondPartyApp.fullname" . }}
+spec:
+{{- if not $values.Values.app.service.omitClusterIP }}
+{{- end }}
+{{- if $app.service.externalIPs }}
+  externalIPs:
+{{ toYaml $app.service.externalIPs | indent 4 }}
+{{- end }}
+{{- if $app.service.loadBalancerIP }}
+  loadBalancerIP: {{ $app.service.loadBalancerIP }}
+{{- end }}
+{{- if $app.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range $cidr := $app.service.loadBalancerSourceRanges }}
+    - {{ $cidr }}
+  {{- end }}
+{{- end }}
+  ports:
+  {{- range $app.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort }}
+  {{- end }}
+  selector:
+    app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+    {{- include "commonApp.secondPartyApp.matchLabels" $values | nindent 4 }}
+  type: ClusterIP
+
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

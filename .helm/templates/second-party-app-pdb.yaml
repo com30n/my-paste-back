@@ -1,0 +1,27 @@
+{{- if hasKey .Values "secondPartyApp" -}}
+  {{- if .Values.secondPartyApp.enabled -}}
+    {{- $values := . }}
+    {{- range $app := .Values.secondPartyApp.apps }}
+      {{- if and $app $app.enabled $.Values.budget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ template "commonApp.secondPartyApp.fullname" $app }}
+  annotations:
+    helm.sh/hook: post-upgrade, post-install
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+  labels:
+    app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+    {{- include "commonApp.secondPartyApp.labels" $values | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+      {{- include "commonApp.secondPartyApp.matchLabels" $values | nindent 6 }}
+  minAvailable: {{ $.Values.budget.minAvailable }}
+
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

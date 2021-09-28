@@ -1,0 +1,306 @@
+# secondPartyApp - it means if you have a code which would be a different applications,
+# and you want to deploy them all (it almost the same as usual deployment, but this apps
+# can reuse some variables from original app e.g. you can do not specify extraEnvs for secondPartyApps,
+# and they will use extraEnvs from original app).
+
+{{- /*
+  If values has the "secondPartyApp" section and "secondPartyApp.enabled" == true, then render this file
+*/ -}}
+{{- if hasKey .Values "secondPartyApp" -}}
+{{- if .Values.secondPartyApp.enabled -}}
+{{- /*
+  Backup ".Values" to "$values" variable
+*/ -}}
+{{- $values := . }}
+{{- range $app := .Values.secondPartyApp.apps }}
+{{- if and $app $app.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+    {{- include "commonApp.secondPartyApp.labels" $values | nindent 4 }}
+  name: {{ template "commonApp.secondPartyApp.fullname" $app }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "commonApp.secondPartyApp.matchLabels" $values | nindent 6 }}
+      app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+  replicas: {{ $app.replicaCount }}
+{{- /*
+  Deploy strategy
+*/ -}}
+{{- if $app.strategy }}
+{{ toYaml $app.strategy | indent 2 }}
+{{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+{{- end }}
+  template:
+    metadata:
+      annotations:
+    {{- if $app.podAnnotations }}
+{{ toYaml $app.podAnnotations | indent 8 }}
+    {{- end }}
+    {{- if and $values.Values.app.vault $values.Values.serviceAccounts.app.create }}
+      {{- if $values.Values.app.vault.enabled }}
+        {{ $secretPath := "kv/APP_NAME/NAMESPACE/env" | replace "APP_NAME" $values.Release.Name | replace "NAMESPACE" $values.Release.Namespace }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-secret-env: {{ $secretPath }}
+        vault.hashicorp.com/agent-inject-template-env: |
+          {{`{{- with secret "SECRET_PATH" -}}
+              {{- range $k, $v := .Data.data }}
+                {{- $k }}={{ $v }}{{ printf "\n" }}
+              {{- end }}
+          {{- end }}` | replace "SECRET_PATH" $secretPath }}
+        vault.hashicorp.com/role: "{{ template "commonApp.app.fullname" $values }}"
+        {{- if $values.Values.app.vault.annotations }}
+{{ toYaml $values.Values.app.vault.annotations | indent 8 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+        rollme: {{ randAlphaNum 20 | quote }}
+      labels:
+        app: {{ template "commonApp.secondPartyApp.fullname" $app }}
+        {{- include "commonApp.secondPartyApp.labels" $values | nindent 8 }}
+    spec:
+{{- if $app.affinity }}
+      affinity:
+{{ toYaml $app.affinity | indent 8 }}
+{{- end }}
+{{- if $app.schedulerName }}
+      schedulerName: "{{ $app.schedulerName }}"
+{{- end }}
+      serviceAccountName: {{ template "commonApp.serviceAccountName.app" $values }}
+{{- if $app.priorityClassName }}
+      priorityClassName: "{{ $app.priorityClassName }}"
+{{- end }}
+{{- if $values.Values.dnsConfig }}
+      dnsConfig:
+{{ toYaml $values.Values.dnsConfig | indent 8 }}
+{{- end }}
+{{- if $app.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ $app.terminationGracePeriodSeconds }}
+{{- else }}
+      terminationGracePeriodSeconds: 30
+{{- end }}
+      containers:
+        - name: {{ $app.name }}
+
+{{- if $values.Values.app.localDeployment }}
+  {{- if $values.Values.app.localDeployment.enabled }}
+    ## Settings for the Local Deployment
+    ## Images for the Local Deployment
+    {{- if $values.Values.app.localDeployment.image }}
+          image: "{{ $values.Values.app.localDeployment.image.repository }}:{{ $values.Values.app.localDeployment.image.tag }}"
+          imagePullPolicy: "{{ $values.Values.app.localDeployment.image.pullPolicy }}"
+    {{- else }}
+          image: "{{ $values.Values.app.image.repository }}:{{ $values.Values.app.image.tag }}"
+          imagePullPolicy: "{{ $values.Values.app.image.pullPolicy }}"
+    {{- end }}
+
+    {{- if $values.Values.app.localDeployment.extraEnv }}
+          env:
+      {{- range $i, $env := $values.Values.app.localDeployment.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- else }}
+          env:
+      {{- range $i, $env := $app.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- end }}
+    ## Envs for the Local Deployment
+  {{- else }}
+          image: "{{ $values.Values.app.image.repository }}:{{ $values.Values.app.image.tag }}"
+          imagePullPolicy: "{{ $values.Values.app.image.pullPolicy }}"
+          env:
+    {{- range $i, $env := $app.extraEnv }}
+      {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+      {{- end }}
+    {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+  {{- end }}
+        ## If Local Deployment is not presented in values, use regular
+{{- else }}
+
+          image: "{{ $values.Values.app.image.repository }}:{{ $values.Values.app.image.tag }}"
+          imagePullPolicy: "{{ $values.Values.app.image.pullPolicy }}"
+          env:
+  {{- /*
+    If extraEnv do not exists in secondPartyApp then use it from the original app
+  */ -}}
+  {{- if hasKey $app "extraEnv" }}
+    # secondaryApp extraEnv
+    {{- range $i, $env := $app.extraEnv }}
+      {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+      {{- end }}
+    {{- end }}
+            - name: APP_NAME
+              value: {{ template "commonApp.secondPartyApp.fullname" $app }}
+            - name: APP_VERSION
+              value: {{ $values.Values.app.version | default "" }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_SERVICE_ACCOUNT
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.serviceAccountName
+  {{- else }}
+    # app extraEnv
+    {{- range $i, $env := $values.Values.app.extraEnv }}
+      {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if and $values.Values.app.vault $values.Values.serviceAccounts.app.create }}
+    {{- if $values.Values.app.vault.enabled }}
+            - name: USE_VAULT_DOTENV_SECRET
+              value: "true"
+            - name: VAULT_DOTENV_SECRET_PATH
+              value: "/vault/secrets/env"
+    {{- end }}
+  {{- end }}
+            - name: APP_NAME
+              value: {{ template "commonApp.secondPartyApp.fullname" $app }}
+            - name: APP_VERSION
+              value: {{ $values.Values.app.version | default "" }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_SERVICE_ACCOUNT
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.serviceAccountName
+
+{{- end }}
+
+          args: {{ $app.args }}
+          {{- if $app.ports }}
+          ports:
+{{ toYaml $app.ports | indent 12 }}
+          {{- else }}
+          ports:
+            - containerPort: {{ $app.containerPort }}
+              name: {{ $app.containerPortName }}
+          {{- end }}
+          {{- if and $app.probes }}
+            {{- if $app.probes.enable }}
+{{ toYaml $app.probes.content | indent 10 }}
+            {{- end}}
+          {{- else }}
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: {{ $app.prefixURL }}/ping
+              port: {{ $app.containerPortName }}
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: {{ $app.prefixURL }}/ping
+              port: {{ $app.containerPortName }}
+              scheme: HTTP
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+            {{- end }}
+
+          resources:
+{{ toYaml $app.resources | indent 12 }}
+
+    {{- if $values.Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $values.Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- if $app.nodeSelector }}
+      nodeSelector:
+{{ toYaml $app.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if $app.securityContext }}
+      securityContext:
+{{ toYaml $app.securityContext | indent 8 }}
+    {{- end }}
+    {{- if $app.tolerations }}
+      tolerations:
+{{ toYaml $app.tolerations | indent 8 }}
+    {{- end }}
+
+---
+{{- end }}
+{{- end -}}
+{{- end -}}
+{{- end -}}

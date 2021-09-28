@@ -1,0 +1,250 @@
+{{- if and .Values.utils -}}
+{{- if and .Values.utils.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "commonApp.utils.labels" . | nindent 4 }}
+  name: {{ template "commonApp.utils.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "commonApp.utils.matchLabels" . | nindent 6 }}
+  replicas: {{ .Values.utils.replicaCount }}
+  template:
+    metadata:
+    {{- if .Values.utils.podAnnotations }}
+      annotations:
+{{ toYaml .Values.utils.podAnnotations | indent 8 }}
+        rollme: {{ randAlphaNum 20 | quote }}
+    {{- end }}
+      labels:
+        {{- include "commonApp.utils.labels" . | nindent 8 }}
+    spec:
+{{- if .Values.utils.affinity }}
+      affinity:
+{{ toYaml .Values.utils.affinity | indent 8 }}
+{{- end }}
+{{- if .Values.utils.schedulerName }}
+      schedulerName: "{{ .Values.utils.schedulerName }}"
+{{- end }}
+      serviceAccountName: {{ template "commonApp.serviceAccountName.utils" . }}
+{{- if .Values.utils.priorityClassName }}
+      priorityClassName: "{{ .Values.utils.priorityClassName }}"
+{{- end }}
+{{- if .Values.dnsConfig }}
+      dnsConfig:
+{{ toYaml .Values.dnsConfig | indent 8 }}
+{{- end }}
+      containers:
+
+{{- if .Values.worker }}
+        - name: {{ template "commonApp.app.fullname" . }}-{{ .Values.worker.name }}
+
+## Settings for the Local Deployment
+{{- if .Values.app.localDeployment }}
+  {{- if .Values.app.localDeployment.enabled }}
+
+        ## Images for the Local Deployment
+    {{- if .Values.app.localDeployment.image }}
+          image: "{{ .Values.app.localDeployment.image.repository }}:{{ .Values.app.localDeployment.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.localDeployment.image.pullPolicy }}"
+    {{- else }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+    {{- end }}
+
+        ## Envs for the Local Deployment
+    {{- if .Values.app.localDeployment.extraEnv }}
+          env:
+      {{- range $i, $env := .Values.utils.localDeployment.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- else }}
+          env:
+      {{- range $i, $env := .Values.utils.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- end }}
+
+  {{- else }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+          env:
+    {{- range $i, $env := .Values.app.extraEnv }}
+      {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+      {{- end }}
+    {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+  {{- end }}
+## If Local Deployment is not presented in .values, use regular
+{{- else }}
+
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+          env:
+  {{- range $i, $env := .Values.utils.extraEnv }}
+    {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+    {{- end }}
+  {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+{{- end }}
+
+          args: {{ .Values.worker.args}}
+          resources:
+{{ toYaml .Values.worker.resources | indent 12 }}
+          {{- if .Values.worker.probes }}
+{{ toYaml .Values.worker.probes | indent 10 }}
+          {{- else if .Values.worker.defaultProbes }}
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: {{ .Values.app.prefixURL }}/ping
+              port: {{ .Values.app.containerPortName }}
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: {{ .Values.app.prefixURL }}/ping
+              port: {{ .Values.app.containerPortName }}
+              scheme: HTTP
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+            {{- end }}
+{{- end }}
+{{- if .Values.listener }}
+        - name: {{ template "commonApp.app.fullname" . }}-{{ .Values.listener.name }}
+## Settings for the Local Deployment
+{{- if .Values.app.localDeployment }}
+  {{- if .Values.app.localDeployment.enabled }}
+
+        ## Images for the Local Deployment
+    {{- if .Values.app.localDeployment.image }}
+          image: "{{ .Values.app.localDeployment.image.repository }}:{{ .Values.app.localDeployment.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.localDeployment.image.pullPolicy }}"
+    {{- else }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+    {{- end }}
+
+        ## Envs for the Local Deployment
+    {{- if .Values.app.localDeployment.extraEnv }}
+          env:
+      {{- range $i, $env := .Values.utils.localDeployment.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- else }}
+          env:
+      {{- range $i, $env := .Values.utils.extraEnv }}
+        {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+        {{- end }}
+      {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+    {{- end }}
+  {{- else }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+          env:
+    {{- range $i, $env := .Values.app.extraEnv }}
+      {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+      {{- end }}
+    {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+  {{- end }}
+## If Local Deployment is not presented in .values, use regular
+{{- else }}
+
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.app.image.pullPolicy }}"
+          env:
+  {{- range $i, $env := .Values.utils.extraEnv }}
+    {{- if $env.value }}
+            - name: {{ $env.name }}
+              value: "{{ $env.value -}}"
+    {{- end }}
+  {{- end }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+{{- end }}
+          args: {{ .Values.listener.args }}
+          resources:
+{{ toYaml .Values.listener.resources | indent 12 }}
+{{- end }}
+
+    {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.utils.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.utils.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if .Values.utils.securityContext }}
+      securityContext:
+{{ toYaml .Values.utils.securityContext | indent 8 }}
+    {{- end }}
+    {{- if .Values.utils.tolerations }}
+      tolerations:
+{{ toYaml .Values.utils.tolerations | indent 8 }}
+    {{- end }}
+{{- end }}
+{{- end -}}

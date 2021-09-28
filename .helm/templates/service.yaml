@@ -1,0 +1,42 @@
+{{- if .Values.app.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.app.service.annotations }}
+  annotations:
+{{ toYaml .Values.app.service.annotations | indent 4 }}
+{{- end }}
+  labels:
+    {{- include "commonApp.app.labels" . | nindent 4 }}
+{{- if .Values.app.service.labels }}
+{{ toYaml .Values.app.service.labels | indent 4 }}
+{{- end }}
+  name: {{ template "commonApp.app.fullname" . }}
+spec:
+{{- if .Values.app.service.externalIPs }}
+  externalIPs:
+{{ toYaml .Values.app.service.externalIPs | indent 4 }}
+{{- end }}
+{{- if .Values.app.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.app.service.loadBalancerIP }}
+{{- end }}
+{{- if .Values.app.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range $cidr := .Values.app.service.loadBalancerSourceRanges }}
+    - {{ $cidr }}
+  {{- end }}
+{{- end }}
+  ports:
+  {{- range .Values.app.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort }}
+  {{- end }}
+  selector:
+    {{- include "commonApp.app.matchLabels" . | nindent 4 }}
+{{- if .Values.app.service.type }}
+  type: {{ .Values.app.service.type }}
+{{- else }}
+  type: ClusterIP
+{{- end }}
+{{- end }}

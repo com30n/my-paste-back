@@ -1,0 +1,40 @@
+{{- if and .Values.app.enabled .Values.app.ingress -}}
+{{- if .Values.app.ingress.enabled -}}
+{{- $serviceName := include "commonApp.app.fullname" . }}
+{{- $servicePort := .Values.app.service.servicePort -}}
+{{- $paths := .Values.app.ingress.paths -}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+{{- if .Values.app.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.app.ingress.annotations | indent 4 }}
+{{- end }}
+  labels:
+    {{- include "commonApp.app.labels" . | nindent 4 }}
+{{- range $key, $value := .Values.app.ingress.extraLabels }}
+    {{ $key }}: {{ $value }}
+{{- end }}
+  name: {{ template "commonApp.app.fullname" . }}
+spec:
+  rules:
+  {{- if .Values.app.ingress.hosts }}
+  {{- range $host := .Values.app.ingress.hosts }}
+    - host: {{ $host }}
+      http:
+        paths:
+  {{- range $p := $paths }}
+          - path: {{ $p }}
+            backend:
+              serviceName: {{ $serviceName }}
+              servicePort: {{ $servicePort }}
+  {{- end -}}
+  {{- end -}}
+  {{- if .Values.app.ingress.tls }}
+  tls:
+{{ toYaml .Values.app.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

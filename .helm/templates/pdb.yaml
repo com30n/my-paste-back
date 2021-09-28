@@ -1,0 +1,17 @@
+
+{{- if and .Values.app.enabled .Values.budget -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ template "commonApp.app.fullname" . }}
+  annotations:
+    helm.sh/hook: post-upgrade, post-install
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+  labels:
+    {{- include "commonApp.app.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "commonApp.app.matchLabels" . | nindent 6 }}
+  minAvailable: {{ .Values.budget.minAvailable }}
+{{- end -}}
