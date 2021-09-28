@@ -1,5 +1,16 @@
+serviceAccounts:
+  app:
+    create: false
+    name:
+  accounts:
+    create: false
+    name:
+  utils:
+    create: false
+    name:
 
 app:
+  enabled: true
   ## api container name
   ##
   name: my-paste-back
